@@ -1,0 +1,155 @@
+{
+  "StartAt": "StartTrainingJob",
+  "States": {
+    "StartTrainingJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-2:xxxxxxxxxx:function:mlops_training",
+      "ResultPath": "$",
+      "Next": "CheckStatusTraining"
+    },
+    "CheckStatusTraining": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-2:xxxxxxxxxx:function:mlops_await",
+      "ResultPath": "$",
+      "Next": "CheckTrainingBranch"
+    },
+    "CheckTrainingBranch": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "Variable": "$.status",
+              "StringEquals": "Completed"
+            }
+          ],
+          "Next": "StartBatchTransformJob"
+        },
+        {
+          "Or": [
+            {
+              "Variable": "$.status",
+              "StringEquals": "InProgress"
+            }
+          ],
+          "Next": "WaitStatusTraining"
+        }
+      ]
+    },
+    "WaitStatusTraining": {
+      "Type": "Wait",
+      "Seconds": 60,
+      "Next": "CheckStatusTraining"
+    },
+    "StartBatchTransformJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-2:xxxxxxxxxx:function:mlops_batchtransform",
+      "ResultPath": "$",
+      "Next": "CheckStatusBatchTransform"
+    },
+    "CheckStatusBatchTransform": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-2:xxxxxxxxxx:function:mlops_await",
+      "ResultPath": "$",
+      "Next": "CheckBatchTransformBranch"
+    },
+    "CheckBatchTransformBranch": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "Variable": "$.status",
+              "StringEquals": "Completed"
+            }
+          ],
+          "Next": "StartEvaluation"
+        },
+        {
+          "Or": [
+            {
+              "Variable": "$.status",
+              "StringEquals": "InProgress"
+            }
+          ],
+          "Next": "WaitStatusBatchTransform"
+        }
+      ]
+    },
+    "WaitStatusBatchTransform": {
+      "Type": "Wait",
+      "Seconds": 60,
+      "Next": "CheckStatusBatchTransform"
+    },
+    "StartEvaluation": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-2:xxxxxxxxxx:function:mlops_eval",
+      "Next": "CheckEvaluationBranch"
+    },
+    "CheckEvaluationBranch": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "Variable": "$.f1score",
+              "NumericGreaterThanEquals": 0.3
+            }
+          ],
+          "Next": "StartDeployment"
+        },
+        {
+          "Or": [
+            {
+              "Variable": "$.f1score",
+              "NumericLessThan": 0.3
+            }
+          ],
+          "Next": "SuccessState"
+        }
+      ]
+    },
+    "StartDeployment": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-2:xxxxxxxxxx:function:mlops_deploy",
+      "Next": "CheckStatusDeployment"
+    },
+    "CheckStatusDeployment": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-2:xxxxxxxxxx:function:mlops_await",
+      "ResultPath": "$",
+      "Next": "CheckDeploymentBranch"
+    },
+    "CheckDeploymentBranch": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Or": [
+            {
+              "Variable": "$.status",
+              "StringEquals": "Creating"
+            }
+          ],
+          "Next": "WaitStatusDeployment"
+        },
+        {
+          "Or": [
+            {
+              "Variable": "$.status",
+              "StringEquals": "InService"
+            }
+          ],
+          "Next": "SuccessState"
+        }
+      ]
+    },
+    "WaitStatusDeployment": {
+      "Type": "Wait",
+      "Seconds": 60,
+      "Next": "CheckStatusDeployment"
+    },
+    "SuccessState": {
+      "Type": "Succeed"
+    }
+  }
+}
