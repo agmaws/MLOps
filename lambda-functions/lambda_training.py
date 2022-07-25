@@ -40,7 +40,7 @@ def lambda_handler(event, context):
     }
     ResourceConfig = {
         "InstanceCount": 1,
-        "InstanceType": "ml.m5.12xlarge",
+        "InstanceType": "ml.m5.4xlarge",
         "VolumeSizeInGB": 20
     }
     HyperParameters = hyperparameters
